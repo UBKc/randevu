@@ -1,0 +1,26 @@
+# Bağımlılıklar
+node_modules/
+**/node_modules/
+
+# Ortam değişkenleri (GİZLİ — asla commit edilmez)
+.env
+**/.env
+!**/.env.example
+
+# Derleme çıktıları
+dist/
+**/dist/
+build/
+
+# Loglar
+*.log
+npm-debug.log*
+
+# Editör / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Puppeteer / geçici
+*.tmp

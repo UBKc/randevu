@@ -1,0 +1,54 @@
+==================================================================
+  EŞZAMANLILIK (RACE CONDITION) TESTİ — ÇIKTI
+==================================================================
+Tarih          : 2026-08-27
+Hedef slot     : personel=1, hizmet=1, başlangıç=2026-09-09T15:00:00+03:00
+Senaryo        : İki müşteri (A=ali, B=burcu) AYNI ANDA aynı slotu alır.
+Gönderim       : Promise.all ile eşzamanlı (sıralı DEĞİL).
+Test gecikmesi : 300 ms (uygulama kontrolü ile INSERT arasında)
+Beklenen       : biri 201, diğeri 409.
+
+------------------------------------------------------------------
+  1) İSTEMCİ TARAFI ZAMAN DAMGALARI (gerçekten paralel mi?)
+------------------------------------------------------------------
+İstek A:
+   gönderim  : 2026-08-27T09:04:22.367Z
+   yanıt     : 2026-08-27T09:04:22.744Z  (süre 377 ms)
+   HTTP      : 201
+   gövde     : {"id":15,"customerId":7,"staffId":1,"serviceId":1,"startAt":"2026-09-09T12:00:00.000Z","endAt":"2026-09-09T12:30:00.000Z","status":"PENDING","note":null,"createdAt":"2026-08-27T09:04:22.733Z","updatedAt":"2026-08-27T09:04:22.733Z"}
+İstek B:
+   gönderim  : 2026-08-27T09:04:22.368Z
+   yanıt     : 2026-08-27T09:04:22.754Z  (süre 386 ms)
+   HTTP      : 409
+   gövde     : {"error":"Bu saat az önce başkası tarafından alındı, lütfen başka bir saat seçin","code":"SLOT_TAKEN"}
+
+  -> İki isteğin gönderim damgaları neredeyse aynı; yanıt süreleri de
+     örtüşüyor. Bu, isteklerin sırayla değil paralel gittiğini gösterir.
+
+------------------------------------------------------------------
+  2) SUNUCU TARAFI — İKİ KATMANIN KANITI (en değerli bölüm)
+------------------------------------------------------------------
+[B] KATMAN1 uygulama kontrolü -> slot BOŞ @ 2026-08-27T09:04:22.426Z
+[A] KATMAN1 uygulama kontrolü -> slot BOŞ @ 2026-08-27T09:04:22.427Z
+[B] KATMAN2 INSERT deneniyor @ 2026-08-27T09:04:22.731Z
+[A] KATMAN2 INSERT deneniyor @ 2026-08-27T09:04:22.732Z
+[A] KATMAN2 INSERT BAŞARILI (id=15) @ 2026-08-27T09:04:22.739Z
+[B] KATMAN2 DB kısıtı REDDETTİ (23P01) -> 409 @ 2026-08-27T09:04:22.752Z
+
+  Yorum:
+   - Her iki istek de "KATMAN1 uygulama kontrolü -> slot BOŞ" satırını
+     üretti. Yani uygulama seviyesindeki ön kontrol İKİSİNİ DE geçirdi;
+     tek başına yeterli OLMADIĞININ kanıtı budur.
+   - Kaybeden istek "KATMAN2 DB kısıtı REDDETTİ (23P01)" ile durduruldu;
+     yani ikinciyi yalnızca VERİTABANI kısıtı engelledi.
+
+------------------------------------------------------------------
+  3) SONUÇ
+------------------------------------------------------------------
+KAZANAN : İstek A -> HTTP 201 (randevu oluşturuldu)
+KAYBEDEN: İstek B -> HTTP 409
+Temiz 409 mesajı: "Bu saat az önce başkası tarafından alındı, lütfen başka bir saat seçin"
+(Ham PostgreSQL 23P01 hatası istemciye sızmadı; anlaşılır mesaja çevrildi.)
+
+TEST SONUCU: BAŞARILI ✓  (tam olarak bir 201 ve bir 409)
+==================================================================

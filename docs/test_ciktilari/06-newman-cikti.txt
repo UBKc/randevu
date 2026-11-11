@@ -1,0 +1,89 @@
+=== Newman (Postman) Test Ciktisi ===
+Tarih: 2026-08-27
+Komut: npx newman run postman/randevu.postman_collection.json
+Hedef: http://localhost:4001 (Randevu API)
+============================================================
+
+(node:13328) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+newman
+
+Randevu / Rezervasyon Yönetim Sistemi API
+
+→ 01 Auth - Yönetici Girişi (200)
+  POST http://localhost:4001/api/auth/login [200 OK, 592B, 85ms]
+  √  200 döner
+  √  token var
+  √  rol ADMIN
+
+→ 02 Auth - Müşteri Girişi (200)
+  POST http://localhost:4001/api/auth/login [200 OK, 583B, 63ms]
+  √  200 döner
+  √  rol CUSTOMER
+
+→ 03 Auth - Token'sız /me (401)
+  GET http://localhost:4001/api/auth/me [401 Unauthorized, 355B, 2ms]
+  √  401 döner
+
+→ 04 Hizmetler - Liste (200)
+  GET http://localhost:4001/api/services [200 OK, 1.03kB, 3ms]
+  √  200 döner
+  √  en az bir hizmet
+
+→ 05 RBAC - Müşteri hizmet oluşturamaz (403)
+  POST http://localhost:4001/api/services [403 Forbidden, 336B, 2ms]
+  √  403 döner
+
+→ 06 Slotlar - Uygun saatler (200)
+  GET http://localhost:4001/api/slots?staffId=1&serviceId=1&date=2026-09-14 [200 OK, 2.16kB, 6ms]
+  √  200 döner
+  √  slot listesi var
+  √  aşama sayıları var
+
+→ 07 Randevu - Oluştur (201)
+  POST http://localhost:4001/api/appointments [201 Created, 526B, 8ms]
+  √  201 döner
+  √  durum PENDING
+
+→ 08 Randevu - Aynı slot tekrar (409 çakışma)
+  POST http://localhost:4001/api/appointments [409 Conflict, 341B, 8ms]
+  √  409 döner
+  √  temiz hata mesajı
+
+→ 09 Randevu - Geçmiş tarih (400)
+  POST http://localhost:4001/api/appointments [400 Bad Request, 347B, 5ms]
+  √  400 döner
+
+→ 10 Randevu - Kendi randevularım (200)
+  GET http://localhost:4001/api/appointments/mine [200 OK, 3.67kB, 6ms]
+  √  200 döner
+  √  en az bir randevu
+
+→ 11 Randevu - İptal (200)
+  PATCH http://localhost:4001/api/appointments/20/cancel [200 OK, 849B, 6ms]
+  √  200 döner
+  √  durum CANCELLED
+
+→ 12 Yönetici - Tüm randevular / takvim (200)
+  GET http://localhost:4001/api/appointments [200 OK, 7.63kB, 5ms]
+  √  200 döner
+
+┌─────────────────────────┬──────────────────┬──────────────────┐
+│                         │         executed │           failed │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│              iterations │                1 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│                requests │               12 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│            test-scripts │               12 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│      prerequest-scripts │                0 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│              assertions │               22 │                0 │
+├─────────────────────────┴──────────────────┴──────────────────┤
+│ total run duration: 1174ms                                    │
+├───────────────────────────────────────────────────────────────┤
+│ total data received: 14.89kB (approx)                         │
+├───────────────────────────────────────────────────────────────┤
+│ average response time: 16ms [min: 2ms, max: 85ms, s.d.: 26ms] │
+└───────────────────────────────────────────────────────────────┘

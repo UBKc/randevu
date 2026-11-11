@@ -1,0 +1,29 @@
+# PostgreSQL'i docker ile kaldirmak icin:
+#   docker compose up -d
+# backend/.env icindeki DATABASE_URL:
+#   postgresql://randevu:randevu@localhost:5432/randevu?schema=public
+# (Gelistirirken docker yerine yerel kurulu PostgreSQL 16 kullandim.)
+
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: randevu-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: randevu
+      POSTGRES_PASSWORD: randevu
+      POSTGRES_DB: randevu
+    ports:
+      - "5432:5432"
+    volumes:
+      - randevu-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U randevu -d randevu"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  randevu-pgdata:

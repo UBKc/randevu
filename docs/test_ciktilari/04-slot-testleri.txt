@@ -1,0 +1,24 @@
+=== Slot Hesaplama Birim Testleri (node:test) ===
+Tarih: 2026-08-27
+Komut: npm test  (node --import tsx --test src/modules/slots/slots.core.test.ts)
+============================================================
+
+✔ overlaps: arka arkaya aralıklar (09:00-09:30 ve 09:30-10:00) ÇAKIŞMAZ (1.0493ms)
+✔ overlaps: gerçekten kesişen aralıklar çakışır (0.2205ms)
+✔ overlaps: bir aralık diğerini kapsıyorsa çakışır (0.184ms)
+✔ temel: 09:00-10:00, 30 dk hizmet, 30 dk adım -> 2 aday slot (1.7079ms)
+✔ sınır: tam mesai bitiminde biten slot dâhil edilir (0.3676ms)
+✔ sınır: hizmet süresi mesai bitimini aşan slot elenir (0.2262ms)
+✔ sınır: dolu randevuya bitişik slot engellenmez (0.3192ms)
+✔ sınır: tam gün izin, tüm slotları eler (0.3184ms)
+✔ sınır: bugünün geçmiş saatleri elenir (nowMinute) (0.3333ms)
+✔ gelecek gün: nowMinute null iken geçmiş elemesi yapılmaz (0.298ms)
+✔ kapsamlı: her aşama slot eler, nihai liste doğru (0.2143ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 240.8476

@@ -1,0 +1,176 @@
+// Randevu / Rezervasyon Yönetim Sistemi — Prisma şeması
+// Veritabanı: PostgreSQL 16 (yerel servis: postgresql-x64-16, port 5432)
+//
+// NOT: appointments tablosundaki randevu çakışmasını engelleyen
+// EXCLUDE USING gist kısıtı Prisma DSL ile ifade edilemez; ilk migration'a
+// ham SQL olarak eklenir (btree_gist eklentisi + partial exclude constraint).
+// Ayrıntı: prisma/migrations/*/migration.sql ve docs/proje-ozeti.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enum'lar
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN // Yönetici (işletme sahibi)
+  STAFF // Personel
+  CUSTOMER // Müşteri
+}
+
+enum AppointmentStatus {
+  PENDING // beklemede
+  CONFIRMED // onaylandı
+  COMPLETED // tamamlandı
+  CANCELLED // iptal
+}
+
+enum TimeOffType {
+  LEAVE // izin
+  HOLIDAY // tatil
+  CLOSED // kapalı (işletme/personel o gün çalışmıyor)
+}
+
+// ---------------------------------------------------------------------------
+// Kullanıcılar (üç rol tek tabloda: ADMIN / STAFF / CUSTOMER)
+// ---------------------------------------------------------------------------
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  phone        String?
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  // İlişkiler
+  staffProfile           StaffProfile? // yalnızca STAFF rolü için dolu
+  appointmentsAsCustomer Appointment[] @relation("CustomerAppointments")
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Personel profili (STAFF rolündeki User'a bire bir bağlı)
+// ---------------------------------------------------------------------------
+
+model StaffProfile {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String? // unvan / uzmanlık (ör. "Kuaför", "Diş Hekimi")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  // İlişkiler
+  services     StaffService[]
+  workingHours WorkingHour[]
+  timeOffs     TimeOff[]
+  appointments Appointment[]  @relation("StaffAppointments")
+
+  @@map("staff_profiles")
+}
+
+// ---------------------------------------------------------------------------
+// Hizmetler (ad, süre, ücret)
+// ---------------------------------------------------------------------------
+
+model Service {
+  id              Int      @id @default(autoincrement())
+  name            String
+  durationMinutes Int // hizmet süresi (dakika) — slot hesabında kullanılır
+  priceCents      Int // ücret (kuruş) — para yuvarlama hatalarından kaçınmak için tam sayı
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  // İlişkiler
+  staff        StaffService[]
+  appointments Appointment[]
+
+  @@map("services")
+}
+
+// ---------------------------------------------------------------------------
+// Personel <-> Hizmet eşleşmesi (çoka-çok ara tablo)
+// Bir personelin verebildiği hizmetleri tanımlar.
+// ---------------------------------------------------------------------------
+
+model StaffService {
+  staffId   Int
+  serviceId Int
+  staff     StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  service   Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([staffId, serviceId])
+  @@map("staff_services")
+}
+
+// ---------------------------------------------------------------------------
+// Haftalık çalışma saatleri (haftalık tekrar eden; sabit tarih İÇERMEZ)
+// dayOfWeek: 0=Pazar ... 6=Cumartesi
+// startMinute/endMinute: gün içi dakika (09:00 = 540, 17:00 = 1020)
+// ---------------------------------------------------------------------------
+
+model WorkingHour {
+  id          Int          @id @default(autoincrement())
+  staffId     Int
+  staff       StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  dayOfWeek   Int // 0-6
+  startMinute Int // gün başından itibaren dakika
+  endMinute   Int
+
+  @@unique([staffId, dayOfWeek, startMinute])
+  @@map("working_hours")
+}
+
+// ---------------------------------------------------------------------------
+// İstisna günler: izin / tatil / kapalı (belirli tarih aralığı)
+// Çalışma saatlerini geçersiz kılan somut tarihli bloklar.
+// ---------------------------------------------------------------------------
+
+model TimeOff {
+  id      Int          @id @default(autoincrement())
+  staffId Int
+  staff   StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  startAt DateTime     @db.Timestamptz(3)
+  endAt   DateTime     @db.Timestamptz(3)
+  type    TimeOffType  @default(LEAVE)
+  reason  String?
+
+  @@index([staffId, startAt])
+  @@map("time_offs")
+}
+
+// ---------------------------------------------------------------------------
+// Randevular
+// startAt/endAt: timestamptz. Çakışma engeli DB'de EXCLUDE kısıtı ile
+// (ilk migration'a ham SQL olarak eklenir).
+// ---------------------------------------------------------------------------
+
+model Appointment {
+  id         Int               @id @default(autoincrement())
+  customerId Int
+  customer   User              @relation("CustomerAppointments", fields: [customerId], references: [id])
+  staffId    Int
+  staff      StaffProfile      @relation("StaffAppointments", fields: [staffId], references: [id])
+  serviceId  Int
+  service    Service           @relation(fields: [serviceId], references: [id])
+  startAt    DateTime          @db.Timestamptz(3)
+  endAt      DateTime          @db.Timestamptz(3)
+  status     AppointmentStatus @default(PENDING)
+  note       String?
+  createdAt  DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@index([staffId, startAt])
+  @@index([customerId, startAt])
+  @@map("appointments")
+}

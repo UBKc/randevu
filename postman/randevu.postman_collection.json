@@ -1,0 +1,277 @@
+{
+  "info": {
+    "name": "Randevu / Rezervasyon Yönetim Sistemi API",
+    "description": "Randevu API'si için uçtan uca test koleksiyonu (Newman ile çalıştırılabilir). Kimlik doğrulama, rol bazlı yetkilendirme, slot hesaplama, randevu oluşturma, çakışma (409) ve iptal senaryolarını kapsar.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4001" },
+    { "key": "adminToken", "value": "" },
+    { "key": "customerToken", "value": "" },
+    { "key": "staffId", "value": "1" },
+    { "key": "serviceId", "value": "1" },
+    { "key": "slotDate", "value": "2026-09-14" },
+    { "key": "slotStart", "value": "" },
+    { "key": "appointmentId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "01 Auth - Yönetici Girişi (200)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@randevu.local\",\n  \"password\": \"Parola123!\"\n}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 döner', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('token var', () => pm.expect(b.token).to.be.a('string'));",
+              "pm.test('rol ADMIN', () => pm.expect(b.user.role).to.eql('ADMIN'));",
+              "pm.collectionVariables.set('adminToken', b.token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Auth - Müşteri Girişi (200)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"ali@ornek.com\",\n  \"password\": \"Parola123!\"\n}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 döner', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('rol CUSTOMER', () => pm.expect(b.user.role).to.eql('CUSTOMER'));",
+              "pm.collectionVariables.set('customerToken', b.token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Auth - Token'sız /me (401)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('401 döner', () => pm.response.to.have.status(401));"] }
+        }
+      ]
+    },
+    {
+      "name": "04 Hizmetler - Liste (200)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/services", "host": ["{{baseUrl}}"], "path": ["api", "services"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 döner', () => pm.response.to.have.status(200));",
+              "pm.test('en az bir hizmet', () => pm.expect(pm.response.json().length).to.be.above(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 RBAC - Müşteri hizmet oluşturamaz (403)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/services", "host": ["{{baseUrl}}"], "path": ["api", "services"] },
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Yetkisiz\",\n  \"durationMinutes\": 30,\n  \"priceCents\": 10000\n}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('403 döner', () => pm.response.to.have.status(403));"] }
+        }
+      ]
+    },
+    {
+      "name": "06 Slotlar - Uygun saatler (200)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/slots?staffId={{staffId}}&serviceId={{serviceId}}&date={{slotDate}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "slots"],
+          "query": [
+            { "key": "staffId", "value": "{{staffId}}" },
+            { "key": "serviceId", "value": "{{serviceId}}" },
+            { "key": "date", "value": "{{slotDate}}" }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 döner', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('slot listesi var', () => pm.expect(b.slots.length).to.be.above(0));",
+              "pm.test('aşama sayıları var', () => pm.expect(b.counts).to.have.property('candidates'));",
+              "pm.collectionVariables.set('slotStart', b.slots[0].startAt);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Randevu - Oluştur (201)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/appointments", "host": ["{{baseUrl}}"], "path": ["api", "appointments"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"staffId\": {{staffId}},\n  \"serviceId\": {{serviceId}},\n  \"startAt\": \"{{slotStart}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('201 döner', () => pm.response.to.have.status(201));",
+              "const b = pm.response.json();",
+              "pm.test('durum PENDING', () => pm.expect(b.status).to.eql('PENDING'));",
+              "pm.collectionVariables.set('appointmentId', String(b.id));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Randevu - Aynı slot tekrar (409 çakışma)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/appointments", "host": ["{{baseUrl}}"], "path": ["api", "appointments"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"staffId\": {{staffId}},\n  \"serviceId\": {{serviceId}},\n  \"startAt\": \"{{slotStart}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('409 döner', () => pm.response.to.have.status(409));",
+              "pm.test('temiz hata mesajı', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Randevu - Geçmiş tarih (400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/appointments", "host": ["{{baseUrl}}"], "path": ["api", "appointments"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"staffId\": {{staffId}},\n  \"serviceId\": {{serviceId}},\n  \"startAt\": \"2026-08-20T10:00:00+03:00\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('400 döner', () => pm.response.to.have.status(400));"] }
+        }
+      ]
+    },
+    {
+      "name": "10 Randevu - Kendi randevularım (200)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/appointments/mine", "host": ["{{baseUrl}}"], "path": ["api", "appointments", "mine"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 döner', () => pm.response.to.have.status(200));",
+              "pm.test('en az bir randevu', () => pm.expect(pm.response.json().length).to.be.above(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Randevu - İptal (200)",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}/cancel",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "appointments", "{{appointmentId}}", "cancel"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 döner', () => pm.response.to.have.status(200));",
+              "pm.test('durum CANCELLED', () => pm.expect(pm.response.json().status).to.eql('CANCELLED'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Yönetici - Tüm randevular / takvim (200)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/appointments", "host": ["{{baseUrl}}"], "path": ["api", "appointments"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('200 döner', () => pm.response.to.have.status(200));"] }
+        }
+      ]
+    }
+  ]
+}
