@@ -1,5 +1,7 @@
 # Randevu – Rezervasyon Yönetim Sistemi
 
+*Appointment booking system (TypeScript, Prisma, PostgreSQL) with slot calculation, a database-level overlap constraint (EXCLUDE USING gist) and a real concurrency test where two simultaneous requests return 201 and 409.*
+
 Kuaför, klinik gibi işletmeler için randevu sistemi. Üç rol var:
 
 - **Yönetici:** hizmetleri ve personeli tanımlıyor, bütün randevuları takvimde görüyor.
