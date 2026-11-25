@@ -23,7 +23,6 @@ export default function ScheduleEditor({ staffId }: { staffId: number }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  // İzin formu
   const [offStart, setOffStart] = useState('');
   const [offEnd, setOffEnd] = useState('');
   const [offType, setOffType] = useState<'LEAVE' | 'HOLIDAY' | 'CLOSED'>('LEAVE');

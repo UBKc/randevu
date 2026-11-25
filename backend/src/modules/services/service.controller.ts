@@ -3,7 +3,6 @@ import { asyncHandler } from '../../utils/http';
 import * as svc from './service.service';
 
 export const listHandler = asyncHandler(async (req: Request, res: Response) => {
-  // Yalnızca ADMIN pasif hizmetleri de görebilir.
   const includeInactive = req.user?.role === 'ADMIN' && req.query.all === 'true';
   const services = await svc.listServices(includeInactive);
   res.json(services);

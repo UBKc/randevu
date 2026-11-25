@@ -20,10 +20,7 @@ export interface AvailableSlotsParams {
   stepMinutes?: number;
 }
 
-/**
- * Bir personelin belirli bir hizmet + gün için uygun slotlarını hesaplar.
- * Veritabanından girdileri toplar, TZ dönüşümünü yapar, saf çekirdeği çağırır.
- */
+// veritabanindan girdileri topluyor, saat dilimini ceviriyor, slots.core'u cagiriyor
 export async function getAvailableSlots(params: AvailableSlotsParams) {
   const { staffId, serviceId, date } = params;
   const step = params.stepMinutes ?? 30;
@@ -41,13 +38,11 @@ export async function getAvailableSlots(params: AvailableSlotsParams) {
   const staff = await prisma.staffProfile.findUnique({ where: { id: staffId } });
   if (!staff) throw new AppError(404, 'Personel bulunamadı');
 
-  // Personel bu hizmeti veriyor mu?
   const link = await prisma.staffService.findUnique({
     where: { staffId_serviceId: { staffId, serviceId } },
   });
   if (!link) throw new AppError(400, 'Bu personel bu hizmeti vermiyor');
 
-  // O günkü çalışma blokları
   const dow = weekdayOf(date);
   const wh = await prisma.workingHour.findMany({
     where: { staffId, dayOfWeek: dow },
@@ -55,11 +50,9 @@ export async function getAvailableSlots(params: AvailableSlotsParams) {
   });
   const workingIntervals = wh.map((w) => ({ start: w.startMinute, end: w.endMinute }));
 
-  // Günün mutlak sınırları (yerel gece yarısı -> +24s)
   const dayStart = localMidnightUtc(date, tz);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60000);
 
-  // Dolu (iptal edilmemiş) randevular — güne düşen kısımları
   const appts = await prisma.appointment.findMany({
     where: {
       staffId,
@@ -70,7 +63,6 @@ export async function getAvailableSlots(params: AvailableSlotsParams) {
   });
   const busyIntervals = appts.map((a) => clampToDayMinutes(a.startAt, a.endAt, dayStart));
 
-  // İzin/tatil blokları — güne düşen kısımları
   const offs = await prisma.timeOff.findMany({
     where: { staffId, startAt: { lt: dayEnd }, endAt: { gt: dayStart } },
   });

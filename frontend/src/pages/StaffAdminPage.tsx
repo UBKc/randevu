@@ -10,7 +10,6 @@ export default function StaffAdminPage() {
   const [selected, setSelected] = useState<number | null>(null);
   const [error, setError] = useState('');
 
-  // Yeni personel formu
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ email: '', password: 'Parola123!', fullName: '', title: '' });
 

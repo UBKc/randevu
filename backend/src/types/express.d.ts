@@ -1,6 +1,5 @@
 import { Role } from '@prisma/client';
 
-// Express Request'e kimlik doğrulanmış kullanıcı bilgisini ekler.
 declare global {
   namespace Express {
     interface Request {

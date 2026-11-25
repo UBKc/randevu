@@ -3,9 +3,6 @@ import { Role } from '@prisma/client';
 import { AppError } from '../utils/http';
 import { verifyToken } from '../utils/jwt';
 
-/**
- * Authorization: Bearer <token> başlığını doğrular ve req.user'ı doldurur.
- */
 export function authenticate(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
@@ -21,10 +18,7 @@ export function authenticate(req: Request, _res: Response, next: NextFunction) {
   }
 }
 
-/**
- * Rol bazlı yetkilendirme. authenticate'ten SONRA kullanılır.
- * Örn: router.post('/', authenticate, authorize('ADMIN'), handler)
- */
+// rol kontrolu, authenticate'ten sonra kullaniliyor
 export function authorize(...roles: Role[]) {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user) {

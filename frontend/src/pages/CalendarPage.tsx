@@ -46,7 +46,6 @@ export default function CalendarPage() {
     }
   };
 
-  // Güne göre grupla
   const days: { date: string; label: string; list: Appointment[] }[] = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(new Date(isoAtStart(start)).getTime() + i * 24 * 3600_000);

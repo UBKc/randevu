@@ -15,10 +15,7 @@ export interface Actor {
   role: Role;
 }
 
-/**
- * Bir randevunun alınabilirlik ön koşulları: geçmiş değil, çalışma saati
- * içinde, izin/tatile denk gelmiyor. (Çakışma kontrolü ayrı; transaction içinde.)
- */
+// gecmis, calisma saati disi ve izin gunu kontrolu (cakisma kontrolu transaction icinde ayri)
 async function assertBookable(staffId: number, startAt: Date, endAt: Date) {
   const tz = config.businessTimezone;
 
@@ -52,21 +49,12 @@ async function getAppointmentOr404(id: number) {
 }
 
 export interface CreateOpts {
-  /** Eşzamanlılık testi için istek etiketi (loglarda A/B). */
   label?: string;
-  /**
-   * Eşzamanlılık testi için: uygulama kontrolü ile INSERT arasına yapay
-   * gecikme (ms). İki isteğin de kontrolü İNSERT'ten önce geçmesini sağlar.
-   * Üretimde kullanılmaz (yalnızca test başlığı ile tetiklenir).
-   */
+  // sadece test basligi gelirse kontrol ile INSERT arasina bekleme
   testDelayMs?: number;
 }
 
-/**
- * PostgreSQL exclusion (23P01) ihlali mi? Prisma bu hatayı P2002 gibi tipli bir
- * kodla değil, ham/bilinmeyen hata olarak sarar; bu yüzden PG kodunu ve kısıt
- * adını elle tespit ediyoruz. (Ayrıntı: docs/proje-ozeti.md, Gün 6.)
- */
+// prisma 23P01'i tipli bir kodla vermiyor, pg kodundan ve kisit adindan anliyorum
 function isExclusionViolation(err: unknown): boolean {
   const e = err as { code?: string; meta?: { code?: string }; message?: string };
   const msg = String(e?.message ?? '');
@@ -81,13 +69,8 @@ function isExclusionViolation(err: unknown): boolean {
 
 const now = () => new Date().toISOString();
 
-/**
- * Randevu oluşturur. Çakışma kontrolü İKİ KATMANDA yapılır:
- *   1) Uygulama katmanı: transaction içinde "bu slot boş mu" sorgusu.
- *   2) Veritabanı katmanı: appointments_no_overlap EXCLUDE kısıtı (son garanti).
- * Eşzamanlı iki istekte 1. katmanı ikisi de geçebilir; 2. katman kaybedeni
- * reddeder ve bu, temiz bir 409'a çevrilir.
- */
+// cakisma iki yerde kontrol ediliyor: once transaction icinde sorguyla, sonra veritabanindaki EXCLUDE kisitiyla
+// ayni anda gelen iki istek ilk kontrolu gecebiliyor, ikincisini kisit durduruyor ve 409 donuyor
 export async function createAppointment(
   customerId: number,
   input: CreateAppointmentInput,
@@ -109,12 +92,11 @@ export async function createAppointment(
   const startAt = input.startAt;
   const endAt = new Date(startAt.getTime() + service.durationMinutes * 60000);
 
-  // Geçmiş / çalışma saati / izin ön koşulları
   await assertBookable(input.staffId, startAt, endAt);
 
   try {
     return await prisma.$transaction(async (tx) => {
-      // --- KATMAN 1: Uygulama seviyesi çakışma kontrolü ---
+      // 1) uygulamada cakisma kontrolu
       const conflict = await tx.appointment.findFirst({
         where: {
           staffId: input.staffId,
@@ -130,13 +112,12 @@ export async function createAppointment(
         throw new AppError(409, 'Bu saat dolu', 'APP_CONFLICT');
       }
 
-      // Test kancası: iki isteğin de kontrolü INSERT'ten önce geçmesi için gecikme
       if (opts.testDelayMs && opts.testDelayMs > 0) {
         await new Promise((r) => setTimeout(r, opts.testDelayMs));
       }
 
       console.log(`${tag}KATMAN2 INSERT deneniyor @ ${now()}`);
-      // --- KATMAN 2: DB EXCLUDE kısıtı (son garanti) ---
+      // 2) veritabani kisiti
       const created = await tx.appointment.create({
         data: {
           customerId,
@@ -170,7 +151,6 @@ const APPT_INCLUDE = {
   customer: { select: { id: true, fullName: true, email: true } },
 } satisfies Prisma.AppointmentInclude;
 
-/** Oturum açan müşterinin randevuları (en yeni önce). */
 export function listMyAppointments(customerId: number) {
   return prisma.appointment.findMany({
     where: { customerId },
@@ -186,13 +166,7 @@ export interface AppointmentFilters {
   status?: AppointmentStatus;
 }
 
-/**
- * Role duyarlı randevu listesi:
- *  - CUSTOMER: yalnızca kendi randevuları
- *  - STAFF   : yalnızca kendisine atanmış randevular (kendi takvimi)
- *  - ADMIN   : tüm randevular (opsiyonel personel filtresi ile)
- * Ortak filtreler: tarih aralığı (from/to) ve durum.
- */
+// musteri kendi randevularini, personel kendine atananlari, admin hepsini goruyor
 export async function listAppointments(actor: Actor, filters: AppointmentFilters) {
   const where: Prisma.AppointmentWhereInput = {};
 
@@ -219,7 +193,7 @@ export async function listAppointments(actor: Actor, filters: AppointmentFilters
   });
 }
 
-/** Randevu iptali: sahibi müşteri, ADMIN veya atanmış personel yapabilir. */
+// iptal: randevunun sahibi, admin ya da atanan personel
 export async function cancelAppointment(id: number, actor: Actor) {
   const appt = await getAppointmentOr404(id);
   const isOwner = appt.customerId === actor.id;
@@ -241,10 +215,7 @@ export async function cancelAppointment(id: number, actor: Actor) {
   });
 }
 
-/**
- * Randevu erteleme (yeni başlangıç saati): sahibi müşteri veya ADMIN yapabilir.
- * Tüm ön koşullar yeniden doğrulanır; çakışma iki katmanda kontrol edilir.
- */
+// erteleme: sahibi ya da admin, butun kontroller tekrar yapiliyor
 export async function rescheduleAppointment(id: number, actor: Actor, newStartAt: Date) {
   const appt = await getAppointmentOr404(id);
   const isOwner = appt.customerId === actor.id;
@@ -261,7 +232,7 @@ export async function rescheduleAppointment(id: number, actor: Actor, newStartAt
 
   try {
     return await prisma.$transaction(async (tx) => {
-      // Uygulama katmanı: kendi kaydı hariç çakışma var mı?
+      // kendi kaydi haric cakisma var mi
       const conflict = await tx.appointment.findFirst({
         where: {
           staffId: appt.staffId,
@@ -273,7 +244,6 @@ export async function rescheduleAppointment(id: number, actor: Actor, newStartAt
       });
       if (conflict) throw new AppError(409, 'Bu saat dolu', 'APP_CONFLICT');
 
-      // DB katmanı: EXCLUDE kısıtı son garanti (satır kendisiyle çakışmaz).
       return tx.appointment.update({
         where: { id },
         data: { startAt: newStartAt, endAt },
@@ -292,7 +262,7 @@ export async function rescheduleAppointment(id: number, actor: Actor, newStartAt
   }
 }
 
-/** Durum güncelleme (onay/tamamlandı/iptal): ADMIN veya atanmış personel. */
+// durum guncelleme: admin ya da atanan personel
 export async function updateStatus(id: number, actor: Actor, status: AppointmentStatus) {
   const appt = await getAppointmentOr404(id);
   const isAdmin = actor.role === Role.ADMIN;

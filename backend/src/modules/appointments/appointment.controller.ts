@@ -4,9 +4,7 @@ import { asyncHandler } from '../../utils/http';
 import * as appts from './appointment.service';
 
 export const createHandler = asyncHandler(async (req: Request, res: Response) => {
-  // Test kancaları (yalnızca eşzamanlılık testinde kullanılır):
-  //   x-test-delay : uygulama kontrolü ile INSERT arasına gecikme (ms)
-  //   x-req-label  : loglarda istek etiketi (A/B)
+  // sadece es zamanlilik testi icin: x-test-delay (ms) ve x-req-label (A/B)
   const testDelayMs = Number(req.header('x-test-delay')) || undefined;
   const label = req.header('x-req-label') || undefined;
 

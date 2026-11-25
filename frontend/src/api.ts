@@ -1,4 +1,4 @@
-// Basit fetch sarmalayıcı. Token'ı localStorage'dan okur, /api'ye (proxy -> 4001) gider.
+// token localStorage'da, /api istekleri vite proxy ile 4001'e gidiyor
 
 const TOKEN_KEY = 'randevu_token';
 

@@ -1,19 +1,7 @@
-/**
- * EŞZAMANLILIK (RACE CONDITION) TESTİ
- *
- * İki müşteri AYNI ANDA aynı slotu almaya çalışır. Beklenen: biri 201, diğeri
- * 409. Kritik kanıt: her iki istek de UYGULAMA katmanındaki "slot boş mu"
- * kontrolünü geçer; kaybedeni yalnızca VERİTABANI kısıtı (EXCLUDE, 23P01)
- * reddeder. Bu, "neden iki katman gerekiyor" sorusunun somut cevabıdır.
- *
- * Çıktı: docs/05-eszamanlilik-testi.txt
- *
- * Yöntem notları:
- *  - İstekler Promise.all ile GERÇEKTEN eşzamanlı gönderilir (sıralı değil).
- *  - x-test-delay başlığı, uygulama kontrolü ile INSERT arasına gecikme koyar;
- *    böylece iki istek de kontrolü INSERT'ten ÖNCE geçer (interleaving garanti).
- *  - Sunucu alt süreç olarak başlatılır, stdout'u yakalanır (katman logları).
- */
+// es zamanlilik testi: iki musteri ayni anda ayni slotu almaya calisiyor, biri 201 digeri 409 almali
+// ikisi de uygulamadaki 'slot bos mu' kontrolunu geciyor, ikinciyi sadece veritabanindaki EXCLUDE kisiti durduruyor
+// x-test-delay ile kontrol ve INSERT arasina bekleme koyuyorum ki iki istek de kontrolu gecsin
+// cikti: docs/05-eszamanlilik-testi.txt
 import { spawn } from 'node:child_process';
 import { execSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -21,15 +9,14 @@ import { resolve } from 'node:path';
 import { prisma } from '../src/prisma';
 
 const API = 'http://localhost:4001';
-// Hedef id'ler çalışma anında isimden çözülür (id kaymalarına karşı sağlam).
+// id'leri isimden buluyorum, seed degisirse bozulmasin
 const TARGET = {
   staffId: 0,
   serviceId: 0,
-  startAt: '2026-09-09T15:00:00+03:00', // 9 Eylül 2026 Çarşamba 15:00
+  startAt: '2026-09-09T15:00:00+03:00',
 };
 const TEST_DELAY_MS = 300;
 
-/** Ayşe personeli + verdiği "Saç Kesimi" hizmetinin gerçek id'lerini bulur. */
 async function resolveTargetIds() {
   const service = await prisma.service.findFirstOrThrow({ where: { name: 'Saç Kesimi' } });
   const staff = await prisma.staffProfile.findFirstOrThrow({
@@ -127,7 +114,7 @@ function bookConcurrently(label: string, token: string): Promise<ReqResult> {
 }
 
 async function cleanupTargetSlot() {
-  // Bu slottaki her randevuyu (herhangi bir durumda) sil -> test tekrar çalışabilir.
+  // test tekrar calisabilsin diye bu saatteki randevular siliniyor
   const start = new Date(TARGET.startAt);
   const end = new Date(start.getTime() + 60 * 60000);
   await prisma.appointment.deleteMany({
@@ -142,23 +129,21 @@ async function main() {
 
   console.log('Sunucu başlatılıyor...');
   const child = await startServer();
-  serverLog.length = 0; // başlangıç loglarını temizle, sadece test loglarını tut
+  serverLog.length = 0;
 
   const [tokenA, tokenB] = await Promise.all([login('ali@ornek.com'), login('burcu@ornek.com')]);
 
-  // --- GERÇEKTEN EŞZAMANLI: iki promise'ı da await'ten önce başlat ---
+  // iki istek de await'ten once baslatiliyor, gercekten ayni anda gidiyor
   const pA = bookConcurrently('A', tokenA);
   const pB = bookConcurrently('B', tokenB);
   const results = await Promise.all([pA, pB]);
 
-  // Sunucu loglarının tamamının gelmesi için kısa bekleme
   await new Promise((r) => setTimeout(r, 500));
 
   const byStatus = (s: number) => results.find((r) => r.status === s);
   const winner = byStatus(201);
   const loser = byStatus(409);
 
-  // --- Raporu oluştur ---
   const L: string[] = [];
   const w = (s = '') => L.push(s);
   w('==================================================================');
@@ -188,8 +173,7 @@ async function main() {
   w('------------------------------------------------------------------');
   w('  2) SUNUCU TARAFI — İKİ KATMANIN KANITI (en değerli bölüm)');
   w('------------------------------------------------------------------');
-  // Yalnızca etiketli kanıt satırlarını al ([A]/[B] ile başlayanlar); tsx'in
-  // stderr'e bastığı kaynak-kodu parçacıklarını dışarıda bırak. Kronolojik sırala.
+  // sadece [A] / [B] ile baslayan log satirlari
   const katmanLogs = serverLog
     .filter((l) => /^\[[AB]\]\s/.test(l))
     .sort((a, b) => {
@@ -228,7 +212,6 @@ async function main() {
   console.log('\n' + text);
   console.log(`Kaydedildi: ${outPath}`);
 
-  // Temizlik: oluşan randevuyu sil (DB seed hâline dönsün) + sunucuyu kapat
   await cleanupTargetSlot();
   await prisma.$disconnect();
   child.kill();

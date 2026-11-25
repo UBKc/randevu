@@ -24,6 +24,5 @@ export const swaggerSpec = swaggerJsdoc({
       { name: 'Randevular', description: 'Randevu oluşturma ve listeleme' },
     ],
   },
-  // JSDoc @openapi bloklarının okunacağı dosyalar.
   apis: ['./src/modules/**/*.routes.ts'],
 });

@@ -18,8 +18,6 @@ export const setServicesHandler = asyncHandler(async (req: Request, res: Respons
   res.json(await staff.setStaffServices(Number(req.params.id), req.body));
 });
 
-// --- Çalışma saatleri ---
-
 export const listWorkingHoursHandler = asyncHandler(async (req: Request, res: Response) => {
   res.json(await staff.listWorkingHours(Number(req.params.id)));
 });
@@ -29,8 +27,6 @@ export const setWorkingHoursHandler = asyncHandler(async (req: Request, res: Res
   await staff.assertCanManageStaff(staffId, req.user!);
   res.json(await staff.setWorkingHours(staffId, req.body));
 });
-
-// --- İzin / tatil ---
 
 export const listTimeOffHandler = asyncHandler(async (req: Request, res: Response) => {
   res.json(await staff.listTimeOff(Number(req.params.id)));

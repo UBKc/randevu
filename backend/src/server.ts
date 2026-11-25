@@ -3,7 +3,6 @@ import { config } from './config';
 import { prisma } from './prisma';
 
 async function main() {
-  // Başlangıçta veritabanı bağlantısını doğrula.
   await prisma.$connect();
   const app = createApp();
 
@@ -12,7 +11,6 @@ async function main() {
     console.log(`Swagger: http://localhost:${config.port}/api/docs`);
   });
 
-  // Düzgün kapanış
   const shutdown = async () => {
     console.log('\nKapatılıyor...');
     server.close();

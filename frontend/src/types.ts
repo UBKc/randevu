@@ -6,7 +6,7 @@ export interface User {
   email: string;
   fullName: string;
   role: Role;
-  staffProfileId?: number; // yalnızca STAFF için dolu
+  staffProfileId?: number;  // sadece personelde dolu
 }
 
 export interface Service {

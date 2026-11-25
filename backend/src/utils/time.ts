@@ -1,15 +1,6 @@
-/**
- * Saat dilimi (timezone) yardımcıları.
- *
- * Slot çekirdeği (slots.core.ts) saf ve dakika-bazlıdır; mutlak zaman (Date)
- * ile "gün içi dakika" arasındaki dönüşümü BU katman yapar. Böylece TZ
- * karmaşası tek yerde toplanır ve çekirdek test edilebilir kalır.
- *
- * İşletme saat dilimi Europe/Istanbul'dur (kalıcı +03:00, DST yok). Yine de
- * offset sabit kodlanmaz; her an için Intl ile hesaplanır (taşınabilirlik).
- */
+// saat dilimi donusumleri burada, slots.core sadece dakikalarla calisiyor
 
-/** Verilen an için TZ offset'i (dakika). local = utc + offset (İstanbul: +180). */
+// istanbul icin +180
 export function tzOffsetMinutes(instant: Date, timeZone: string): number {
   const dtf = new Intl.DateTimeFormat('en-US', {
     timeZone,
@@ -29,24 +20,20 @@ export function tzOffsetMinutes(instant: Date, timeZone: string): number {
   return Math.round((asUtc - instant.getTime()) / 60000);
 }
 
-/** 'YYYY-MM-DD' yerel gün başlangıcının (00:00) mutlak UTC anı. */
 export function localMidnightUtc(dateStr: string, timeZone: string): Date {
   const naiveUtc = new Date(`${dateStr}T00:00:00Z`);
   const off = tzOffsetMinutes(naiveUtc, timeZone);
   return new Date(naiveUtc.getTime() - off * 60000);
 }
 
-/** Bir anı, o günün başlangıcına göre gün içi dakikaya çevirir. */
 export function toMinuteOfDay(instant: Date, dayStartUtc: Date): number {
   return Math.round((instant.getTime() - dayStartUtc.getTime()) / 60000);
 }
 
-/** Gün başlangıcı + dakika -> mutlak an. */
 export function fromMinuteOfDay(dayStartUtc: Date, minute: number): Date {
   return new Date(dayStartUtc.getTime() + minute * 60000);
 }
 
-/** Bir [start,end) mutlak aralığını, hedef güne kırparak dakika aralığına çevirir. */
 export function clampToDayMinutes(
   start: Date,
   end: Date,
@@ -57,7 +44,6 @@ export function clampToDayMinutes(
   return { start: s, end: e };
 }
 
-/** Bir anın, verilen saat diliminde 'YYYY-MM-DD' takvim tarihi. */
 export function dateStrInTz(instant: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone,
@@ -67,17 +53,12 @@ export function dateStrInTz(instant: Date, timeZone: string): string {
   }).format(instant);
 }
 
-/** 'YYYY-MM-DD' tarihinin haftanın günü (0=Pazar .. 6=Cumartesi). */
+// 0 = pazar
 export function weekdayOf(dateStr: string): number {
   return new Date(`${dateStr}T00:00:00Z`).getUTCDay();
 }
 
-/**
- * Hedef gün için "geçmiş elemesi" dakikasını üretir:
- *  - hedef gün geçmişteyse   -> 1440 (tüm slotlar geçmiş)
- *  - hedef gün gelecekteyse  -> null (eleme yok)
- *  - hedef gün bugünse       -> şu anın gün içi dakikası
- */
+// gecmis gun -> 1440, gelecek gun -> null, bugun -> simdiki dakika
 export function nowMinuteForDate(
   dateStr: string,
   timeZone: string,

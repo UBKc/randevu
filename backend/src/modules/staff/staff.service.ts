@@ -9,10 +9,7 @@ import {
   SetWorkingHoursInput,
 } from './staff.schemas';
 
-/**
- * Yetki kontrolü: ADMIN her personeli, STAFF yalnızca kendi profilini yönetir.
- * MÜŞTERİ bu işlemleri yapamaz (route seviyesinde de engellenir).
- */
+// admin her personeli, personel sadece kendini yonetebiliyor
 export async function assertCanManageStaff(
   staffId: number,
   user: { id: number; role: Role },
@@ -24,7 +21,6 @@ export async function assertCanManageStaff(
   throw new AppError(403, 'Yalnızca kendi profilinizi yönetebilirsiniz');
 }
 
-/** Personel listesi: kullanıcı bilgisi + verebildiği hizmetler. */
 export function listStaff() {
   return prisma.staffProfile.findMany({
     include: {
@@ -48,14 +44,13 @@ export async function getStaff(id: number) {
   return staff;
 }
 
-/** ADMIN yeni personel (STAFF rolü + StaffProfile) oluşturur. */
 export async function createStaff(input: CreateStaffInput) {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) throw new AppError(409, 'Bu e-posta zaten kayıtlı');
 
   const passwordHash = await bcrypt.hash(input.password, 10);
 
-  // Kullanıcı + profil + (varsa) hizmet eşleşmeleri tek transaction'da.
+  // kullanici, profil ve hizmetler tek transaction'da
   return prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
@@ -88,11 +83,9 @@ export async function createStaff(input: CreateStaffInput) {
   });
 }
 
-/** Personelin verebildiği hizmet kümesini tümüyle değiştirir. */
 export async function setStaffServices(staffId: number, input: SetStaffServicesInput) {
-  await getStaff(staffId); // 404 kontrolü
+  await getStaff(staffId);
 
-  // Verilen hizmetlerin gerçekten var olduğunu doğrula.
   const found = await prisma.service.count({ where: { id: { in: input.serviceIds } } });
   if (found !== input.serviceIds.length) {
     throw new AppError(400, 'Bir veya daha fazla hizmet bulunamadı');
@@ -113,14 +106,12 @@ export async function setStaffServices(staffId: number, input: SetStaffServicesI
   });
 }
 
-// ---------------------------------------------------------------------------
-// Çalışma saatleri (haftalık) — tüm kümeyi değiştirir (replace).
-// ---------------------------------------------------------------------------
+// calisma saatleri, gonderilen liste eskisinin yerine geciyor
 
 export async function setWorkingHours(staffId: number, input: SetWorkingHoursInput) {
-  await getStaff(staffId); // 404 kontrolü
+  await getStaff(staffId);
 
-  // Aynı gün içinde çakışan çalışma bloklarını reddet.
+  // ayni gunde cakisan bloklar kabul edilmiyor
   const byDay = new Map<number, { start: number; end: number }[]>();
   for (const w of input.workingHours) {
     const list = byDay.get(w.dayOfWeek) ?? [];
@@ -159,10 +150,6 @@ export async function listWorkingHours(staffId: number) {
     orderBy: [{ dayOfWeek: 'asc' }, { startMinute: 'asc' }],
   });
 }
-
-// ---------------------------------------------------------------------------
-// İzin / tatil (istisna günler)
-// ---------------------------------------------------------------------------
 
 export async function listTimeOff(staffId: number) {
   await getStaff(staffId);

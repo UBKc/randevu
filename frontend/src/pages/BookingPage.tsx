@@ -19,7 +19,6 @@ export default function BookingPage() {
     api.get<StaffSummary[]>('/staff').then(setStaff);
   }, []);
 
-  // Seçilen hizmeti verebilen personeller
   const eligibleStaff = serviceId
     ? staff.filter((s) => s.services.some((ss) => ss.service.id === serviceId))
     : staff;
@@ -45,12 +44,12 @@ export default function BookingPage() {
     setMessage('');
     try {
       await api.post('/appointments', { staffId, serviceId, startAt: slot.startAt });
-      await fetchSlots(); // slot listesini tazele (mesajı temizler)
+      await fetchSlots();
       setMessage(`Randevunuz oluşturuldu: ${date} ${slot.start} (beklemede)`);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        await fetchSlots(); // dolu slot listeden düşsün
-        setError(`⚠️ ${err.message}`); // tazelemeden SONRA göster ki temizlenmesin
+        await fetchSlots();
+        setError(`⚠️ ${err.message}`);  // mesaji tazelemeden sonra gosteriyorum, yoksa siliniyor
       } else {
         setError(err instanceof ApiError ? err.message : 'Randevu oluşturulamadı');
       }

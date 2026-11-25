@@ -5,7 +5,7 @@ import { AppError } from '../../utils/http';
 import { signToken } from '../../utils/jwt';
 import { LoginInput, RegisterInput } from './auth.schemas';
 
-/** Herkese açık kayıt yalnızca MÜŞTERİ rolü oluşturur. */
+// kayit olan herkes musteri oluyor
 export async function register(input: RegisterInput) {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) {

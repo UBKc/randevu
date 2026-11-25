@@ -1,15 +1,6 @@
-/**
- * Slot hesaplama algoritmasını ADIM ADIM gösteren örnek.
- * Çıktı docs/03-slot-hesaplama-ornegi.txt olarak kaydedilir.
- *
- * Senaryo (26 Ağustos 2026, Çarşamba):
- *   Personel: Ayşe (Kuaför) — Çarşamba çalışma saati 09:00–17:00
- *   Hizmet  : 45 dakikalık bir hizmet (ör. Saç Boyama'nın kısaltılmış hâli)
- *   Adım    : 30 dakika (09:00, 09:30, 10:00 ... aday başlangıçlar)
- *   İzin    : 12:00–13:00 öğle izni
- *   Dolu    : 10:00–10:45 ve 13:00–14:30 (iptal edilmemiş randevular)
- *   Şu an   : 26 Ağustos 11:30 (bu saatten önceki slotlar geçmiştir)
- */
+// slot hesaplamasini adim adim gosteren ornek, cikti docs/03-slot-hesaplama-ornegi.txt
+// 26 agustos carsamba, ayse 09:00-17:00, 45 dk hizmet, 30 dk adim,
+// 12:00-13:00 izin, 10:00-10:45 ve 13:00-14:30 dolu, saat 11:30
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {

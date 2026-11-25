@@ -27,13 +27,13 @@ export function createService(input: CreateServiceInput) {
 }
 
 export async function updateService(id: number, input: UpdateServiceInput) {
-  await getService(id); // 404 kontrolü
+  await getService(id);
   return prisma.service.update({ where: { id }, data: input });
 }
 
 export async function deleteService(id: number) {
   await getService(id);
-  // Hizmet geçmiş randevularda kullanılıyorsa silmek yerine pasifleştiriyoruz.
+  // gecmis randevuda kullanilan hizmet silinmiyor, pasif yapiliyor
   const usedCount = await prisma.appointment.count({ where: { serviceId: id } });
   if (usedCount > 0) {
     return prisma.service.update({ where: { id }, data: { active: false } });

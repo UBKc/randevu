@@ -26,7 +26,6 @@ export function formatPrice(cents: number): string {
   return `${(cents / 100).toLocaleString('tr-TR')} ₺`;
 }
 
-/** ISO tarihi Türkiye saatiyle "11 Eyl 2026 14:30" gibi biçimler. */
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('tr-TR', {
     timeZone: 'Europe/Istanbul',

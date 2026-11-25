@@ -17,7 +17,6 @@ export const staffIdParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
-// Haftalık çalışma saatleri — tüm kümeyi değiştirir (replace).
 const workingHourItem = z
   .object({
     dayOfWeek: z.number().int().min(0).max(6),

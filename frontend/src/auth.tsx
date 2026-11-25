@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const res = await api.post<{ token: string }>('/auth/login', { email, password });
     setToken(res.token);
-    await loadMe(); // staffProfileId dahil tam kullanıcıyı yükle
+    await loadMe();
   };
 
   const logout = () => {

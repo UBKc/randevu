@@ -4,10 +4,7 @@ import { AppError } from '../utils/http';
 
 type Part = 'body' | 'query' | 'params';
 
-/**
- * İsteğin belirtilen kısmını Zod şeması ile doğrular. Geçerliyse
- * ayrıştırılmış (parse edilmiş) veriyi geri yazar; değilse 400 döner.
- */
+// zod ile dogrulama, hataliysa 400
 export function validate(schema: ZodSchema, part: Part = 'body') {
   return (req: Request, _res: Response, next: NextFunction) => {
     const result = schema.safeParse(req[part]);
